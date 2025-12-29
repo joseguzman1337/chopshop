@@ -1,4 +1,4 @@
-# Copyright (c) 2013 The MITRE Corporation. All rights reserved.
+# Copyright (c) 2014 The MITRE Corporation. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -228,6 +228,7 @@ def handleStream(tcp):
 def find_flag(data, tcp):
     ((src, sport), (dst, dport)) = parse_addr(tcp)
     flag = ''
+    module_data = tcp.module_data
 
     for i in range(tcp.module_data['wsize'] - 3):
         compressed_len = struct.unpack('<I', data[i:i + 4])[0]
@@ -772,7 +773,7 @@ def teardown(tcp):
     pass
 
 def module_info():
-    print "Decode and display Gh0st backdoor commands and responses"
+    return "Decode and display Gh0st backdoor commands and responses"
 
 def shutdown(module_data):
     pass

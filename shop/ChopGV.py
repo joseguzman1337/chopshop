@@ -1,4 +1,6 @@
-# Copyright (c) 2013 The MITRE Corporation. All rights reserved.
+#!/usr/bin/env python
+
+# Copyright (c) 2014 The MITRE Corporation. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -21,9 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-The payloads decoder is used to print plaintext or xor encoded payloads from
-TCP packets.
+import os
+import sys
 
-The module must be given a comma separated list of IP addresses to watch
-for. If desired a xor key can be given (prefixed with 0x) which will be
-applied to the payload of each packet.
+CHOPSHOP_WD = os.path.realpath(os.path.dirname(sys.argv[0]))

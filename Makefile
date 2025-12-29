@@ -1,4 +1,4 @@
-# Copyright (c) 2013 The MITRE Corporation. All rights reserved.
+# Copyright (c) 2014 The MITRE Corporation. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -26,11 +26,6 @@ SED=	/usr/bin/sed
 SED_ARGS=	-i '' -Ee
 INSTALL=	/usr/bin/install
 INSTALLDATA=	/usr/bin/install -m 644
-
-VERSION=	3.0-BETA
-RELEASE_NAME=	chopshop-${VERSION}
-RELEASE_DIR=	release
-RELEASE_FILE=	${RELEASE_DIR}/${RELEASE_NAME}.tbz2
 
 # Define this if you want to install into your home directory.
 # make install PREFIX=/home/wshields
@@ -83,66 +78,87 @@ PY_MAJ:=	$(word 2,$(subst ., ,${PY_VER}))
 PY_MIN:=	$(word 3,$(subst ., ,${PY_VER}))
 PY_TEST:=	$(shell [ ${PY_MAJ} -eq 2 -a ${PY_MIN} -ge 6 ] && echo true)
 
-DNSLIB_MODULES=	dns_extractor
+DNSLIB_MODULES=	dns
 
-HTPY_MODULES=	http_extractor
+HTPY_MODULES=	http
 
-MONGO_MODULES=	dns_extractor \
-		http_extractor
+MONGO_MODULES=	dns_extractor
 
 YARA_MODULES=	yarashop
 
+PYLIBEMU_MODULES=	shellcode_extractor
+
+M2CRYPTO_MODULES=	chop_ssl
+
 dependency-check:
 	@echo "Checking dependencies..."
-	@echo "Checking python..."
+	@echo "\nChecking python..."
 ifeq (${PY_TEST}, true)
-	@echo "Python OK: ${PY_VER}"
+	@echo "  Python OK: ${PY_VER}"
 else
-	@echo "FATAL: Python BAD: ${PY_VER} (Need 2.6+)"
+	@echo "  FATAL: Python BAD: ${PY_VER} (Need 2.6+)"
 endif
-	@echo "Checking pynids..."
+	@echo "\nChecking pynids..."
 	@if ${PYTHON} -c 'import nids'; then \
-		echo "pynids OK"; \
+		echo "  pynids OK"; \
 	else \
-		echo "FATAL: pynids BAD"; \
+		echo "  FATAL: pynids BAD"; \
 	fi
-	@echo "Checking pymongo..."
+	@echo "\nChecking pymongo..."
 	@if ${PYTHON} -c 'import pymongo'; then \
-		echo "pymongo OK"; \
+		echo "  pymongo OK"; \
 	else \
-		echo "pymongo BAD"; \
-		echo "These modules will not work:"; \
-		echo "${MONGO_MODULES}"; \
+		echo "  pymongo BAD"; \
+		echo "  These modules will not work:"; \
+		echo "    ${MONGO_MODULES}"; \
 	fi
-	@echo "Checking htpy..."
+	@echo "\nChecking htpy..."
 	@if ${PYTHON} -c 'import htpy'; then \
-		echo "htpy OK"; \
+		echo "  htpy OK"; \
 	else \
-		echo "htpy BAD"; \
-		echo "These modules will not work:"; \
-		echo "${HTPY_MODULES}"; \
+		echo "  htpy BAD"; \
+		echo "  These modules will not work:"; \
+		echo "    ${HTPY_MODULES}"; \
 	fi
-	@echo "Checking dnslib..."
+	@echo "\nChecking dnslib..."
 	@if ${PYTHON} -c 'import dnslib'; then \
-		echo "dnslib OK"; \
+		echo "  dnslib OK"; \
 	else \
-		echo "dnslib BAD"; \
-		echo "These modules will not work:"; \
-		echo "${DNSLIB_MODULES}"; \
+		echo "  dnslib BAD"; \
+		echo "  These modules will not work:"; \
+		echo "    ${DNSLIB_MODULES}"; \
 	fi
-	@echo "Checking yaraprocessor..."
+	@echo "\nChecking yaraprocessor..."
 	@if ${PYTHON} -c 'import yaraprocessor'; then \
-		echo "yaraprocessor OK"; \
-    else \
-		echo "yaraprocessor BAD"; \
-		echo "These modules will not work:"; \
-		echo "${YARA_MODULES}"; \
+		echo "  yaraprocessor OK"; \
+	else \
+		echo "  yaraprocessor BAD"; \
+		echo "  These modules will not work:"; \
+		echo "    ${YARA_MODULES}"; \
+	fi
+	@echo "\nChecking pylibemu..."
+	@if ${PYTHON} -c 'import pylibemu'; then \
+		echo "  pylibemu OK"; \
+	else \
+		echo "  pylibemu BAD"; \
+		echo "  These modules will not work:"; \
+		echo "    ${PYLIBEMU_MODULES}"; \
+	fi
+	@echo "\nChecking M2Crypto..."
+	@if ${PYTHON} -c 'import M2Crypto'; then \
+		echo "  M2Crypto OK"; \
+	else \
+		echo "  M2Crypto BAD"; \
+		echo "  These modules will not work:"; \
+		echo "    ${M2CRYPTO_MODULES}"; \
 	fi
 
 # When installing we need to modify the chopshop working directory
 # so that external libraries and modules are found properly.
 install:
 	@${SED} ${SED_ARGS} 's,^(CHOPSHOP_WD = os.path.realpath\().*(\)),\1"${LIBEXECDIR}"\2,;1,1s,.*,#!${PYTHON},' chopshop
+	@${SED} ${SED_ARGS} 's,^(CHOPSHOP_WD = os.path.realpath\().*(\)),\1"${LIBEXECDIR}"\2,;1,1s,.*,#!${PYTHON},' chopweb
+	@${SED} ${SED_ARGS} 's,^(CHOPSHOP_WD = os.path.realpath\().*(\)),\1"${LIBEXECDIR}"\2,;1,1s,.*,#!${PYTHON},' shop/ChopGV.py
 	@${SED} ${SED_ARGS} 's,^(sys.path.append\().*,\1"${SHOPDIR}"),;1,1s,.*,#!${PYTHON},' suture 
 	@${INSTALL} -v -d ${BINDIR}
 	@${INSTALL} -v -o ${OWNER} -g ${GROUP} chopshop ${BINDIR}
@@ -153,11 +169,3 @@ install:
 	@${INSTALLDATA} -v -o ${OWNER} -g ${GROUP} modules/* ${MOD_DIR}
 	@${INSTALL} -v -d ${EXT_LIBS_DIR}
 	@${INSTALLDATA} -v -o ${OWNER} -g ${GROUP} ext_libs/* ${EXT_LIBS_DIR}
-
-# Using COPYFILE_DISABLE=true causes OS X to not copy the resource forks.
-# Transformations are not applied to resource forks so we had a couple of bad
-# entries in the released tarballs because of this.
-release:
-	@/bin/rm -rf ./${RELEASE_DIR}
-	@/bin/mkdir ./${RELEASE_DIR}
-	@COPYFILE_DISABLE=true ${TAR} -cvj --transform=s,^,${RELEASE_NAME}/, --exclude ${RELEASE_DIR} --exclude ".git*" --exclude "*.swp" --exclude "*.pyc" -f ${RELEASE_FILE} .

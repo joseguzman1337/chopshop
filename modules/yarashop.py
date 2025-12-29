@@ -1,4 +1,4 @@
-# Copyright (c) 2013 The MITRE Corporation. All rights reserved.
+# Copyright (c) 2014 The MITRE Corporation. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -37,7 +37,7 @@ moduleName = "yarashop"
 
 
 def module_info():
-    print "Process TCP session payloads with Yara."
+    return "Process TCP session payloads with Yara."
 
 
 def init(module_data):

@@ -1,4 +1,4 @@
-# Copyright (c) 2013 The MITRE Corporation. All rights reserved.
+# Copyright (c) 2014 The MITRE Corporation. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -55,7 +55,7 @@ def _dCompressBlock(x):
                     u += x[0]
                     x = x[1:]
                 else:
-                    pt = unpack_from('H', x)[0]
+                    pt = unpack_from('<H', x)[0]
                     pt = pt & 0xffff
                     #print "PT = %x" % pt
                     i = (len(u)-1)  # Current Pos
@@ -97,7 +97,8 @@ def dCompressBuf(blob):
             hdr = blob[0:2]
             blob = blob[2:]
 
-            length = struct.unpack('H', hdr)[0]
+            length = struct.unpack('<H', hdr)[0]
+            compressed = ((length&0x8000) == (0x8000))
             length &= 0xfff
             length += 1
             if length > len(blob):
@@ -106,7 +107,10 @@ def dCompressBuf(blob):
             else:
                 y = blob[:length]
                 blob = blob[length:]
-                unc += _dCompressBlock(y)
+                if(compressed):
+                    unc += _dCompressBlock(y)
+                else:
+                    unc +=y
         except:
             good = False
 

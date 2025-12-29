@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2013 The MITRE Corporation. All rights reserved.
+# Copyright (c) 2014 The MITRE Corporation. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -24,7 +24,7 @@
 # SUCH DAMAGE.
 
 
-VERSION = 4.0 
+VERSION = 4.3 
 
 import ConfigParser
 import sys
@@ -36,16 +36,17 @@ from threading import Thread, Lock
 import re
 from cStringIO import StringIO
 
-CHOPSHOP_WD = os.path.realpath(os.path.dirname(sys.argv[0]))
 
-if CHOPSHOP_WD + '/shop' not in sys.path:
-    sys.path.append(CHOPSHOP_WD + '/shop')
-
+from ChopGV import CHOPSHOP_WD
 from ChopNids import ChopCore
 from ChopHelper import ChopHelper
 from ChopSurgeon import Surgeon
 from ChopException import ChopLibException
 from ChopGrammar import ChopGrammar
+
+
+DEFAULT_MODULE_DIRECTORY = CHOPSHOP_WD + '/modules/'
+DEFAULT_EXTLIB_DIRECTORY = CHOPSHOP_WD + '/ext_libs/'
 """
     ChopLib is the core functionality of ChopShop. It provides a library interface to the processing side of chopshop
     Any output/UI functionality has been extracted and is not done by this class. ChopLib will output all output onto queue
@@ -56,7 +57,8 @@ class ChopLib(Thread):
     daemon = True
     def __init__(self):
         Thread.__init__(self, name = 'ChopLib')
-        global CHOPSHOP_WD
+        global DEFAULT_MODULE_DIRECTORY
+        global DEFAULT_EXTLIB_DIRECTORY
 
         pyversion = sys.version_info
         pyversion = float(str(pyversion[0]) + "." + str(pyversion[1]))
@@ -70,8 +72,8 @@ class ChopLib(Thread):
         from Queue import Empty
         Queue.Empty = Empty #I'd prefer to keep this scoped to Queue
 
-        self.options = { 'mod_dir': CHOPSHOP_WD + '/modules/',
-                         'ext_dir': CHOPSHOP_WD + '/ext_libs/',
+        self.options = { 'mod_dir': [DEFAULT_MODULE_DIRECTORY],
+                         'ext_dir': [DEFAULT_EXTLIB_DIRECTORY],
                          'base_dir': None,
                          'filename': '',
                          'filelist': None,
@@ -86,7 +88,6 @@ class ChopLib(Thread):
                          'text': False,
                          'pyobjout': False,
                          'jsonout': False,
-                         'savedir': '/tmp/',
                          'modules': ''
                        }
 
@@ -114,7 +115,10 @@ class ChopLib(Thread):
 
     @mod_dir.setter
     def mod_dir(self, v):
-        self.options['mod_dir'] = v
+        if isinstance(v, basestring):
+            self.options['mod_dir'] = [v]
+        else:
+            self.options['mod_dir'] = v
 
     @property
     def ext_dir(self):
@@ -123,7 +127,10 @@ class ChopLib(Thread):
 
     @ext_dir.setter
     def ext_dir(self, v):
-        self.options['ext_dir'] = v
+        if isinstance(v, basestring):
+            self.options['ext_dir'] = [v]
+        else:
+            self.options['ext_dir'] = v
 
     @property
     def base_dir(self):
@@ -132,7 +139,10 @@ class ChopLib(Thread):
 
     @base_dir.setter
     def base_dir(self, v):
-        self.options['base_dir'] = v
+        if isinstance(v, basestring):
+            self.options['base_dir'] = [v]
+        else:
+            self.options['base_dir'] = v
 
     @property
     def filename(self):
@@ -241,15 +251,6 @@ class ChopLib(Thread):
     @jsonout.setter
     def jsonout(self, v):
         self.options['jsonout'] = v
-
-    @property
-    def savedir(self):
-        """Location to save carved files."""
-        return self.options['savedir']
-
-    @savedir.setter
-    def savedir(self, v):
-        self.options['savedir'] = v
 
     @property
     def modules(self):
@@ -487,7 +488,7 @@ class ChopLib(Thread):
 
     def __loadModules_(self, name, path):
         try:
-            (file, pathname, description) = imp.find_module(name, [path])
+            (file, pathname, description) = imp.find_module(name, path)
             loaded_mod = imp.load_module(name, file, pathname, description)
         except Exception, e:
             tb = traceback.format_exc()
@@ -511,7 +512,8 @@ class ChopLib(Thread):
         options = None
         module_list = []
         ccore = None
-        mod_dir = None
+        mod_dir = []
+        ext_dir = []
         chopgram = None
         abort = False
 
@@ -537,14 +539,16 @@ class ChopLib(Thread):
 
                 #Set up the module directory and the external libraries directory
                 if options['base_dir'] is not None:
-                    base_dir = os.path.realpath(options['base_dir'])
-                    mod_dir = base_dir + "/modules/"
-                    ext_dir = base_dir + "/ext_libs"
+                    for base in options['base_dir']:
+                        real_base = os.path.realpath(base)
+                        mod_dir.append(real_base + "/modules/")
+                        ext_dir.append(real_base + "/ext_libs")
                 else:
                     mod_dir = options['mod_dir']
                     ext_dir = options['ext_dir']
 
-                sys.path.append(os.path.realpath(ext_dir))
+                for ed_path in ext_dir:
+                    sys.path.append(os.path.realpath(ed_path))
 
                 #Setup the chophelper
                 chophelper = ChopHelper(dataq, options)
@@ -616,6 +620,9 @@ class ChopLib(Thread):
                     sys.stdout = strbuff = StringIO()
 
                     try:
+                        #Instantiate a dummy 'chop' accessor for each module in case
+                        #they use it in init
+                        mod.code.chop = chophelper.setup_dummy()
                         sys.argv[0] = mod.code.moduleName
                         mod.code.init({'args': ['-h']})
                     except SystemExit, e:
@@ -652,7 +659,7 @@ class ChopLib(Thread):
                 raise Exception("Unknown message")
 
 
-        chop.prettyprnt("RED", "Starting ChopShop")
+        chop.prettyprnt("RED", "Starting ChopShop (Created by MITRE)")
 
         #Initialize the ChopShop Core
         ccore = ChopCore(options, module_list, chop, chophelper)

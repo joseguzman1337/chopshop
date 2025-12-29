@@ -1,4 +1,4 @@
-# Copyright (c) 2013 The MITRE Corporation. All rights reserved.
+# Copyright (c) 2014 The MITRE Corporation. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -23,7 +23,7 @@
 
 import struct
 import binascii
-from datetime import datetime
+import datetime
 import time
 import string
 import math
@@ -90,7 +90,7 @@ def multibyte_xor(data, key):
         output += chr(byte ^ key_byte)
     return output
 
-def sanitize_filename(inf):
+def sanitize_filename(inf, default='NONAME'):
     fname = ""
     bad = [ '/', '\\', ':', '~', '*' ]
     for c in inf:
@@ -98,6 +98,8 @@ def sanitize_filename(inf):
             fname += '_'
         else:
             fname += c
+    if not fname:
+        fname = default
     return fname
 
 def replace_nonascii(line, repl):
@@ -152,20 +154,68 @@ def packet_time(t, date=False, utc=False, isodate=False):
     """Given a unixtime (seconds since epoch) value, return a
     human-readable string describing that time.  if DATE is
     True, then also include the year, month, day, and timezone.
-    If UTC is true, return the time in UTC instead of local
+    If UTC is true, return the time in UTC instead of local machine
+    time
     """
-    if utc:
-        fmt = "%Y-%m-%d %H:%M:%S +0000"
-        ts = time.gmtime(t)
+    # The following timezone code taken from python documentation
+    # https://docs.python.org/2/library/datetime.html#datetime.tzinfo
+    ZERO = datetime.timedelta(0)
+
+    class UTC(datetime.tzinfo):
+        def utcoffset(self, dt):
+            return ZERO
+
+        def tzname(self, dt):
+            return "UTC"
+
+        def dst(self, dt):
+            return ZERO
+
+    STDOFFSET = datetime.timedelta(seconds=-time.timezone)
+    if time.daylight:
+        DSTOFFSET = datetime.timedelta(seconds=-time.altzone)
     else:
-        fmt = "%Y-%m-%d %H:%M:%S %z"
-        ts = time.localtime(t)
+        DSTOFFSET = STDOFFSET
+
+    DSTDIFF = DSTOFFSET - STDOFFSET
+
+    class LocalTimezone(datetime.tzinfo):
+        def utcoffset(self, dt):
+            if self._isdst(dt):
+                return DSTOFFSET
+            else:
+                return STDOFFSET
+
+        def dst(self, dt):
+            if self._isdst(dt):
+                return DSTDIFF
+            else:
+                return ZERO
+
+        def tzname(self, dt):
+            return time.tzname[self._isdst(dt)]
+
+        def _isdst(self, dt):
+            tt = (dt.year, dt.month, dt.day,
+                  dt.hour, dt.minute, dt.second,
+                  dt.weekday(), 0, 0)
+            stamp = time.mktime(tt)
+            tt = time.localtime(stamp)
+            return tt.tm_isdst > 0
+
+    if utc:
+        dt = datetime.datetime.utcfromtimestamp(t).replace(tzinfo=UTC())
+    else:
+        dt = datetime.datetime.fromtimestamp(t).replace(tzinfo=LocalTimezone())
+
     if date:
         if isodate:
-            return datetime.fromtimestamp(time.mktime(ts))
+            return dt
         else:
-            return time.strftime(fmt, ts).rstrip()
-    return "%02d:%02d:%02d" % (ts[3], ts[4], ts[5])
+            return dt.strftime("%Y-%m-%d %H:%M:%S %z").strip()
+    else:
+        return dt.strftime("%H:%M:%S").strip()
+
 
 def hexdump(data, tabs=0, spaces=0, show_offset=True):
     """Given a buffer of binary data, return a string with a hexdump

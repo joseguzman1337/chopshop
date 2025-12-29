@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-# Copyright (c) 2013 The MITRE Corporation. All rights reserved.
+# Copyright (c) 2014 The MITRE Corporation. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -27,11 +27,6 @@ import sys
 import os
 from threading import Thread, Lock
 import Queue
-
-CHOPSHOP_WD = os.path.realpath(os.path.dirname(sys.argv[0]))
-
-if CHOPSHOP_WD + '/shop' not in sys.path:
-    sys.path.append(CHOPSHOP_WD + '/shop')
 
 from ChopException import * 
 from ChopUiStd import *
@@ -175,10 +170,10 @@ class ChopUi(Thread):
     def run(self):
         try:
             if self.options['stdout'] == True:
-                self.stdclass = ChopStdout()
+                self.stdclass = ChopStdout(self.stop, self.lib_stop_fn)
                 #Assign the default stdout handler
             elif self.options['stdout'] != False:
-                self.stdclass = self.options['stdout']()
+                self.stdclass = self.options['stdout'](self.stop, self.lib_stop_fn)
                 #Override the default handler with this one
 
             if self.options['gui'] == True:
@@ -187,24 +182,24 @@ class ChopUi(Thread):
                 self.uiclass = self.options['gui'](self.stop, self.lib_stop_fn)
 
             if self.options['fileout'] == True:
-                self.fileoclass = ChopFileout(format_string = self.options['filedir'])
+                self.fileoclass = ChopFileout(self.stop, self.lib_stop_fn, format_string = self.options['filedir'])
             elif self.options['fileout'] != False:
-                self.fileoclass = self.options['fileout'](format_string = self.options['filedir'])
+                self.fileoclass = self.options['fileout'](self.stop, self.lib_stop_fn, format_string = self.options['filedir'])
 
             if self.options['jsonout'] == True:
-                self.jsonclass = ChopJson(format_string = self.options['jsondir'])
+                self.jsonclass = ChopJson(self.stop, self.lib_stop_fn, format_string = self.options['jsondir'])
             elif self.options['jsonout'] != False:
-                self.jsonclass = self.options['jsonout'](format_string = self.options['jsondir'])
+                self.jsonclass = self.options['jsonout'](self.stop, self.lib_stop_fn, format_string = self.options['jsondir'])
 
             if self.options['savefiles'] == True:
-                self.filesclass = ChopFilesave(format_string = self.options['savedir'])
+                self.filesclass = ChopFilesave(self.stop, self.lib_stop_fn, format_string = self.options['savedir'])
             elif self.options['savefiles'] != False:
-                self.filesclass = self.options['savefiles'](format_string = self.options['savedir'])
+                self.filesclass = self.options['savefiles'](self.stop, self.lib_stop_fn, format_string = self.options['savedir'])
 
             if self.options['pyobjout'] == True:
                 self.pyobjclass = None #No default handler Should throw exception
             elif self.options['pyobjout'] != False:
-                self.pyobjclass = self.options['pyobjout']()
+                self.pyobjclass = self.options['pyobjout'](self.stop, self.lib_stop_fn)
         except Exception, e:
             raise ChopUiException(e)
 

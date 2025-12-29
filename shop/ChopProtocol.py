@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2013 The MITRE Corporation. All rights reserved.
+# Copyright (c) 2014 The MITRE Corporation. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -39,6 +39,10 @@ class ChopProtocol(object):
         self.type = type
         self.sval = False
         self.unique = None
+        self._teardown = False
+
+    def setTeardown(self, v = True):
+        self._teardown = v
 
     #If your data is complex enough
     #you MUST inherit from ChopProtocol and redefine _clone
